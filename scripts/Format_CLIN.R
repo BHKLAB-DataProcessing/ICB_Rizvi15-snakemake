@@ -3,9 +3,11 @@ input_dir <- args[1]
 output_dir <- args[2]
 
 source("https://raw.githubusercontent.com/BHKLAB-Pachyderm/ICB_Common/main/code/Get_Response.R")
+source("https://raw.githubusercontent.com/BHKLAB-Pachyderm/ICB_Common/main/code/format_clin_data.R")
 
-clin = read.csv( file.path(input_dir, "CLIN.txt"), stringsAsFactors=FALSE , sep="\t" )
-clin = cbind( clin[ , c( "PATIENT_ID","HISTOLOGY","AGE","SEX","PFS_MONTHS","EVENT_TYPE","TREATMENT_BEST_RESPONSE" ) ] , "Lung", "PD-1/PD-L1", NA , NA , NA , NA , NA , NA , NA )
+clin_original = read.csv( file.path(input_dir, "CLIN.txt"), stringsAsFactors=FALSE , sep="\t" )
+selected_cols <- c( "PATIENT_ID","HISTOLOGY","AGE","SEX","PFS_MONTHS","EVENT_TYPE","TREATMENT_BEST_RESPONSE" )
+clin = cbind( clin_original[ , selected_cols ] , "Lung", "PD-1/PD-L1", NA , NA , NA , NA , NA , NA , NA )
 colnames(clin) = c( "patient" , "histo" , "age" , "sex"  ,"t.pfs" , "pfs" ,"recist" , "primary", "drug_type" , "os" , "t.os" , "stage" , "dna" , "rna" , "response.other.info" , "response")
 
 clin$recist[ clin$recist %in% "POD" ] = "PD" 
@@ -18,6 +20,8 @@ case = read.csv( file.path(output_dir, "cased_sequenced.csv"), stringsAsFactors=
 clin$dna[ clin$patient %in% case[ case$snv %in% 1 , ]$patient ] = "wes"
 
 clin = clin[ , c("patient" , "sex" , "age" , "primary" , "histo" , "stage" , "response.other.info" , "recist" , "response" , "drug_type" , "dna" , "rna" , "t.pfs" , "pfs" , "t.os" , "os" ) ]
+
+clin <- format_clin_data(clin_original, 'PATIENT_ID', selected_cols, clin)
 
 write.table( clin , file=file.path(output_dir, "CLIN.csv") , quote=FALSE , sep=";" , col.names=TRUE , row.names=FALSE )
 
