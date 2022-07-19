@@ -10,14 +10,15 @@ filename = config["filename"]
 data_source  = "https://raw.githubusercontent.com/BHKLAB-Pachyderm/ICB_Rizvi15-data/main/"
 
 rule get_MultiAssayExp:
-    output:
-        S3.remote(prefix + filename)
     input:
         S3.remote(prefix + "processed/CLIN.csv"),
         S3.remote(prefix + "processed/CNA_gene.csv"),
+        S3.remote(prefix + "processed/CNA_seg.txt"),
         S3.remote(prefix + "processed/SNV.csv"),
         S3.remote(prefix + "processed/cased_sequenced.csv"),
         S3.remote(prefix + "annotation/Gencode.v40.annotation.RData")
+    output:
+        S3.remote(prefix + filename)
     resources:
         mem_mb=3000
     shell:
@@ -42,12 +43,12 @@ rule download_annotation:
         """
 
 rule format_snv:
-    output:
-        S3.remote(prefix + "processed/SNV.csv")
     input:
         S3.remote(prefix + "download/SNV.txt.gz"),
         S3.remote(prefix + "processed/cased_sequenced.csv"),
         S3.remote(prefix + "download/CLIN_sample.txt")
+    output:
+        S3.remote(prefix + "processed/SNV.csv")
     resources:
         mem_mb=1500
     shell:
@@ -58,12 +59,12 @@ rule format_snv:
         """
 
 rule format_cna_seg:
-    output:
-        S3.remote(prefix + "processed/CNA_seg.txt")
     input:
         S3.remote(prefix + "processed/cased_sequenced.csv"),
         S3.remote(prefix + "download/CLIN_sample.txt"),
         S3.remote(prefix + "download/CNA_seg.txt.gz")
+    output:
+        S3.remote(prefix + "processed/CNA_seg.txt")
     resources:
         mem_mb=1000
     shell:
@@ -74,11 +75,11 @@ rule format_cna_seg:
         """
 
 rule format_cna_gene:
-    output:
-        S3.remote(prefix + "processed/CNA_gene.csv")
     input:
         S3.remote(prefix + "processed/cased_sequenced.csv"),
         S3.remote(prefix + "download/gistic/all_thresholded.by_genes.txt.gz")
+    output:
+        S3.remote(prefix + "processed/CNA_gene.csv")
     resources:
         mem_mb=1500
     shell:
@@ -89,11 +90,11 @@ rule format_cna_gene:
         """
 
 rule format_clin:
-    output:
-        S3.remote(prefix + "processed/CLIN.csv")
     input:
         S3.remote(prefix + "processed/cased_sequenced.csv"),
         S3.remote(prefix + "download/CLIN.txt")
+    output:
+        S3.remote(prefix + "processed/CLIN.csv")
     resources:
         mem_mb=1500
     shell:
@@ -104,10 +105,10 @@ rule format_clin:
         """
 
 rule format_cased_sequenced:
-    output:
-        S3.remote(prefix + "processed/cased_sequenced.csv")
     input:
         S3.remote(prefix + "download/CLIN.txt")
+    output:
+        S3.remote(prefix + "processed/cased_sequenced.csv")
     resources:
         mem_mb=1500
     shell:
@@ -117,20 +118,29 @@ rule format_cased_sequenced:
         {prefix}processed \
         """
 
-rule download_data:
+rule format_downloaded_data:
+    input:
+        S3.remote(prefix + "download/luad_mskcc_2015.tar.gz")
     output:
         S3.remote(prefix + "download/CLIN.txt"),
         S3.remote(prefix + "download/CLIN_sample.txt"),
-        S3.remote(prefix + "download/SNV.txt.gz"),
+        S3.remote(prefix + "download/SNV.txt.gz")
+    shell:
+        """
+        Rscript scripts/format_downloaded_data.R \
+        {prefix}download \
+        """
+
+rule download_data:
+    output:
+        S3.remote(prefix + "download/luad_mskcc_2015.tar.gz"),
         S3.remote(prefix + "download/gistic/all_thresholded.by_genes.txt.gz"),
         S3.remote(prefix + "download/CNA_seg.txt.gz")
     resources:
         mem_mb=1500
     shell:
         """
-        wget {data_source}CLIN.txt -O {prefix}download/CLIN.txt
-        wget {data_source}CLIN_sample.txt -O {prefix}download/CLIN_sample.txt
-        wget {data_source}SNV.txt.gz -O {prefix}download/SNV.txt.gz
+        wget -O {prefix}download/luad_mskcc_2015.tar.gz https://cbioportal-datahub.s3.amazonaws.com/luad_mskcc_2015.tar.gz
         wget {data_source}gistic/all_thresholded.by_genes.txt.gz -O {prefix}download/gistic/all_thresholded.by_genes.txt.gz
         wget {data_source}CNA_seg.txt.gz -O {prefix}download/CNA_seg.txt.gz
         """ 
